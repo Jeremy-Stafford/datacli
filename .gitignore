@@ -1,1 +1,3 @@
 **/__pycache__
+dist
+dataclass_cli.egg-info
