@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 from datacli import __version__
 
 setup(
-    name="datacli",
+    name="dataclass-cli",
     version=__version__,
     packages=find_packages(),
 
