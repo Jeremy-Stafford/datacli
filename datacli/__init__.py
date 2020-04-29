@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from contextlib import suppress
 from dataclasses import MISSING, fields
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def get_names(field):
