@@ -8,10 +8,9 @@ DataCLI is based on argparse.
 
 from argparse import ArgumentParser
 from contextlib import suppress
-from dataclasses import MISSING, fields
+from dataclasses import Field, MISSING, fields
 
 __version__ = "0.1.1"
-
 
 def get_names(field):
     """Return the CLI for a field."""
@@ -26,9 +25,25 @@ def get_names(field):
 
 def from_env_var(env_var_name: str):
     """add a default factory to extract the cli argument from env"""
-    def _get() -> str:
-        return os.getenv(env_var_name, f"")
-    return _get
+    def _datacli_get_env_var() -> str:
+        val_from_env_var = os.getenv(env_var_name, "")
+        return val_from_env_var
+
+    _datacli_get_env_var.__name__ = env_var_name
+    return _datacli_get_env_var
+
+
+def has_env_default_factory(field: Field) -> bool:
+    default_factory = field.default_factory
+    function_name_len = len("_datacli_get_env_var")
+    return not (default_factory is MISSING) and default_factory.__qualname__[-function_name_len:] == "_datacli_get_env_var"
+
+
+def get_corresponding_env_var(field: Field) -> Optional[str]:
+    result = None
+    if has_env_default_factory(field):
+        result = field.default_factory.__name__
+    return result
 
 
 def make_parser(cls):
@@ -36,18 +51,19 @@ def make_parser(cls):
     parser = ArgumentParser()
 
     for field in fields(cls):
-        corresponding_env_var = field.metadata.get("env_var")
+        default_factory = field.default_factory
 
         required = (field.default is MISSING
-                    and field.default_factory is MISSING)
+                    and default_factory is MISSING)
 
+
+        help_text = field.metadata.get("help", "")
         env_var_default: Optional[str] = None
-        help_text = field.metadata.get("help")
+        corresponding_env_var = get_corresponding_env_var(field)
 
         if corresponding_env_var:
-            required = False
             help_text = help_text + f", can also be set with environment variable {corresponding_env_var}"
-            env_var_default = os.getenv(corresponding_env_var, "")
+            env_var_default = os.getenv(corresponding_env_var)
 
         arg_type = field.metadata.get("arg_type", field.type)
 
@@ -61,12 +77,12 @@ def make_parser(cls):
 
 def check_fields_with_env_defaults(instance):
     for field in fields(type(instance)):
-        corresponding_env_var = field.metadata.get("env_var")
-        if corresponding_env_var and getattr(instance, field.name) == "":
-            error_message = f"{field.name} not set, either supply arguments {list(get_names(field))} " \
-                + f"or set environment variable {corresponding_env_var}"
-            raise ValueError(error_message)
-
+        field_content = getattr(instance, field.name)
+        corresponding_env_var = get_corresponding_env_var(field)
+        print(corresponding_env_var)
+        if corresponding_env_var and field_content == "":
+            raise ValueError(f"{field.name} not set, either supply either of the arguments {list(get_names(field))} " \
+                    + f"or set environment variable {corresponding_env_var}")
 
 def datacli(cls, argv=None):
     """Parse command line arguments into a 'cls' object."""
