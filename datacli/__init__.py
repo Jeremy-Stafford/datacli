@@ -79,7 +79,6 @@ def check_fields_with_env_defaults(instance):
     for field in fields(type(instance)):
         field_content = getattr(instance, field.name)
         corresponding_env_var = get_corresponding_env_var(field)
-        print(corresponding_env_var)
         if corresponding_env_var and field_content == "":
             raise ValueError(f"{field.name} not set, either supply either of the arguments {list(get_names(field))} " \
                     + f"or set environment variable {corresponding_env_var}")
