@@ -12,6 +12,8 @@ from dataclasses import Field, MISSING, fields
 
 __version__ = "0.1.1"
 
+env_var_default_factory_marker = "_datacli_get_env_var"
+
 def get_names(field):
     """Return the CLI for a field."""
     with suppress(KeyError):
@@ -24,19 +26,30 @@ def get_names(field):
 
 
 def from_env_var(env_var_name: str):
-    """add a default factory to extract the cli argument from env"""
-    def _datacli_get_env_var() -> str:
-        val_from_env_var = os.getenv(env_var_name, "")
-        return val_from_env_var
+    """
+    Add a default factory to extract the cli argument from env.
+    Returns an anonymous function and passes metadata that can be used for further processing. 
+    This solves the following problem:
+    A default_factory is a zero parameter function that will be called as a default. As such it has no awareness
+    about the field name that it supposed to fill. The overall intention is to enable error logging that reports
+    both the cli parameter and the corresponding env variable that can be used to fill a required value. 
+    Therefore, by raising an error in the default_factory, the application would not be able to report the
+    corresponding cli argument without tightly coupling the name of the cli argument and that of the env variable.
+    Hence, by attaching the meta info about the fact that this default factory reads env variables the name of the
+    variable, the subsequent make_parser method can provide more helpful error logging. 
+    """
+    factory_function = lambda: os.getenv(env_var_name, "")
 
-    _datacli_get_env_var.__name__ = env_var_name
-    return _datacli_get_env_var
+    factory_function.__qualname__ = env_var_default_factory_marker
+    factory_function.__name__ = env_var_name
+    
+    return factory_function
 
 
 def has_env_default_factory(field: Field) -> bool:
     default_factory = field.default_factory
     function_name_len = len("_datacli_get_env_var")
-    return not (default_factory is MISSING) and default_factory.__qualname__[-function_name_len:] == "_datacli_get_env_var"
+    return not (default_factory is MISSING) and default_factory.__qualname__== env_var_default_factory_marker
 
 
 def get_corresponding_env_var(field: Field) -> Optional[str]:
