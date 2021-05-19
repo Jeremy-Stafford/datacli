@@ -47,12 +47,18 @@ def from_env_var(env_var_name: str):
 
 
 def has_env_default_factory(field: Field) -> bool:
+    """
+    Check if a field can be filled with an environment variable. This utilizes the explicit naming of the initially
+    anonymous default factory returned by `from_env_var`
+    """
     default_factory = field.default_factory
-    function_name_len = len("_datacli_get_env_var")
     return not (default_factory is MISSING) and default_factory.__qualname__== env_var_default_factory_marker
 
 
 def get_corresponding_env_var(field: Field) -> Optional[str]:
+    """
+    Utilize the dyanic name assigned to the initially anonymous default factory returned by `from_env_var`.
+    """
     result = None
     if has_env_default_factory(field):
         result = field.default_factory.__name__
