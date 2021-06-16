@@ -13,6 +13,7 @@ from dataclasses import Field, MISSING, fields
 __version__ = "0.1.1"
 
 env_var_default_factory_marker = "_datacli_get_env_var"
+default_inception_marker = "_datacli_default_inception"
 
 
 def get_names(field):
@@ -26,7 +27,7 @@ def get_names(field):
         yield "--" + field.name.replace("_", "-")
 
 
-def from_env_var(env_var_name: str):
+def from_env_var(env_var_name: str, default=None):
     """
     Add a default factory to extract the cli argument from env.
     Returns an anonymous function and passes metadata that can be used for further processing. 
@@ -38,12 +39,13 @@ def from_env_var(env_var_name: str):
     not be able to report the corresponding cli argument without tightly coupling the name of the cli 
     argument and that of the env variable. Hence, by attaching the meta info about the fact that this 
     default factory reads env variables the name of the variable, the subsequent make_parser method can 
-    provide more helpful error logging. 
+    provide more helpful error logging.
     """
-    factory_function = lambda: os.getenv(env_var_name, "")
+    factory_function = lambda: os.getenv(env_var_name, default)
 
     factory_function.__qualname__ = env_var_default_factory_marker
     factory_function.__name__ = env_var_name
+    setattr(factory_function, default_inception_marker, default)
 
     return factory_function
 
@@ -74,9 +76,14 @@ def make_parser(cls):
 
     for field in fields(cls):
         default_factory = field.default_factory
-
+        # The default factory called `from_env_var` is used to connect CLI parameters to environment
+        # variables. The `from_env_var` factory also enables the distinction between required and
+        # optional environment-connected CLI parameters through the passing of a `default` argument on the
+        # dataclass.
+        default_inception = getattr(default_factory, default_inception_marker, None)
         required = (field.default is MISSING
-                    and default_factory is MISSING)
+                    and default_factory is MISSING
+                    and default_inception is None)
 
         help_text = field.metadata.get("help", "")
         env_var_default: Optional[str] = None
@@ -84,7 +91,8 @@ def make_parser(cls):
 
         if corresponding_env_var:
             help_text = help_text + \
-                f", can also be set with environment variable {corresponding_env_var}"
+                (", " if len(help_text) > 0 else "") + \
+                f"can also be set with environment variable {corresponding_env_var}"
             env_var_default = os.getenv(corresponding_env_var)
 
         arg_type = field.metadata.get("arg_type", field.type)
@@ -102,7 +110,7 @@ def check_fields_with_env_defaults(instance):
     for field in fields(type(instance)):
         field_content = getattr(instance, field.name)
         corresponding_env_var = get_corresponding_env_var(field)
-        if corresponding_env_var and not bool(field_content):
+        if corresponding_env_var and field_content is None:
             raise ValueError(
                 f"{field.name} not set, either supply either of the arguments {list(get_names(field))} "
                 + f"or set environment variable {corresponding_env_var}"
