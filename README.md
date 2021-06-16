@@ -1,4 +1,4 @@
-# Datacli
+# datacli
 
 `datacli` is a library for building simple command line interfaces from
 dataclasses. It is built on `argparse` and has no dependencies.
