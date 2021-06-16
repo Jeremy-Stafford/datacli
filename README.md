@@ -1,4 +1,4 @@
-# datacli
+# Datacli
 
 `datacli` is a library for building simple command line interfaces from
 dataclasses. It is built on `argparse` and has no dependencies.
@@ -78,3 +78,15 @@ age: int = field(default=20, metadata={"short_name": "-a"})
 ```
 
 [field]: https://docs.python.org/3/library/dataclasses.html#dataclasses.field
+
+## Help Text
+
+Add custom help messages through `field(metadata={"help": <help text>})`
+
+## Environment variables
+
+Link CLI arguments to environment variables and add defaults via
+`field(default_factory=from_env_var(<var_name>, [default=<some_default>]))`.
+If `default` is omitted then the value is mandatory and `datacli` will fail with a helpful error message if
+neither the parameter nor the environment variable are provided. Setting the `from_env_var` as a default
+factory also expands the help text to give the name of the connected environment variable.

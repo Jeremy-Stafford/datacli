@@ -61,3 +61,19 @@ def test_environment_variables():
     args = datacli(Test, ["--integer", "10"])
 
     assert args == Test(10, "abcd")
+
+    del os.environ[ENV_VAR_NAME]
+
+
+def test_environment_variables_with_defaults():
+    ENV_VAR_NAME = "STRING_FOR_TEST_CLI"
+    test_default_value = "some default value"
+
+    @dataclass
+    class Test:
+        integer: int
+        string: str = field(default_factory=from_env_var(ENV_VAR_NAME, default=test_default_value))
+
+    args = datacli(Test, ["--integer", "10"])
+
+    assert args == Test(10, test_default_value)
